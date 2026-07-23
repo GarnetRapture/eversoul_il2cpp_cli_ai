@@ -466,6 +466,12 @@ def main():
 
     if help_mode or not query:
         print_detailed_help(lang)
+        # If executed directly by double-clicking without CLI arguments, pause before exit
+        if len(sys.argv) <= 1:
+            try:
+                input(f"{Colors.YELLOW}\nPress Enter to exit... / 종료하려면 Enter 키를 누르십시오...{Colors.RESET}")
+            except (EOFError, KeyboardInterrupt):
+                pass
         sys.exit(0)
 
     context = search_context(query)
@@ -477,3 +483,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
