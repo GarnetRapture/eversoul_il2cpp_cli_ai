@@ -17,6 +17,7 @@ import sys
 import json
 import os
 import argparse
+import shutil
 
 AUTHOR_URL = "https://github.com/GarnetRapture"
 VERSION = "0.0.1"
@@ -49,10 +50,29 @@ def get_base_dir():
         os.getcwd(),
         os.path.dirname(script_dir)
     ]
+    # 1. Check if database/index.db already exists
     for c in candidates:
         db_dir = os.path.join(c, "database")
         if os.path.exists(os.path.join(db_dir, "index.db")):
             return db_dir
+
+    # 2. Hybrid Auto-Relocation: Check if *.db files exist in root/same directory
+    for c in candidates:
+        root_index = os.path.join(c, "index.db")
+        if os.path.exists(root_index):
+            db_dir = os.path.join(c, "database")
+            os.makedirs(db_dir, exist_ok=True)
+            for item in os.listdir(c):
+                if item.endswith(".db") and os.path.isfile(os.path.join(c, item)):
+                    src = os.path.join(c, item)
+                    dst = os.path.join(db_dir, item)
+                    try:
+                        shutil.move(src, dst)
+                    except Exception:
+                        pass
+            if os.path.exists(os.path.join(db_dir, "index.db")):
+                return db_dir
+
     return os.path.join(os.getcwd(), "database")
 
 DB_DIR = get_base_dir()
@@ -68,6 +88,11 @@ def get_db_connection():
     conn = sqlite3.connect(index_path)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
+
+    cursor.execute("PRAGMA synchronous = OFF;")
+    cursor.execute("PRAGMA journal_mode = OFF;")
+    cursor.execute("PRAGMA cache_size = 20000;")
+    cursor.execute("PRAGMA temp_store = MEMORY;")
 
     db_names = [
         ("signatures_1.db", "sig1_db"),
@@ -88,6 +113,7 @@ def get_db_connection():
         cursor.execute(f"ATTACH DATABASE '{p}' AS {alias};")
 
     return conn, cursor
+
 
 def search_context(query_str, max_results=5):
     conn, cursor = get_db_connection()

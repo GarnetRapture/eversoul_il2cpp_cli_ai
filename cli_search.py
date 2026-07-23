@@ -3,6 +3,7 @@ import sys
 import json
 import os
 import argparse
+import shutil
 
 AUTHOR_URL = "https://github.com/GarnetRapture"
 VERSION = "0.0.1"
@@ -34,18 +35,39 @@ def init_console():
             pass
 
 def get_base_dir():
+    candidates = []
     if getattr(sys, 'frozen', False):
         exe_dir = os.path.dirname(os.path.abspath(sys.executable))
-        db_dir = os.path.join(exe_dir, "database")
+        candidates.append(exe_dir)
+    
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    candidates.append(script_dir)
+    candidates.append(os.getcwd())
+
+    # 1. Check if database/index.db already exists
+    for base in candidates:
+        db_dir = os.path.join(base, "database")
         if os.path.exists(os.path.join(db_dir, "index.db")):
             return db_dir
-        return db_dir
 
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    db_dir = os.path.join(script_dir, "database")
-    if os.path.exists(os.path.join(db_dir, "index.db")):
-        return db_dir
-    return os.path.join(os.getcwd(), "database")
+    # 2. Hybrid Auto-Relocation: Check if *.db files exist in root/same directory
+    for base in candidates:
+        root_index = os.path.join(base, "index.db")
+        if os.path.exists(root_index):
+            db_dir = os.path.join(base, "database")
+            os.makedirs(db_dir, exist_ok=True)
+            for item in os.listdir(base):
+                if item.endswith(".db") and os.path.isfile(os.path.join(base, item)):
+                    src = os.path.join(base, item)
+                    dst = os.path.join(db_dir, item)
+                    try:
+                        shutil.move(src, dst)
+                    except Exception:
+                        pass
+            if os.path.exists(os.path.join(db_dir, "index.db")):
+                return db_dir
+
+    return os.path.join(candidates[0], "database")
 
 DB_DIR = get_base_dir()
 
@@ -61,6 +83,11 @@ def get_db_connection():
     conn = sqlite3.connect(index_path)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
+
+    cursor.execute("PRAGMA synchronous = OFF;")
+    cursor.execute("PRAGMA journal_mode = OFF;")
+    cursor.execute("PRAGMA cache_size = 20000;")
+    cursor.execute("PRAGMA temp_store = MEMORY;")
 
     db_names = [
         ("signatures_1.db", "sig1_db"),
@@ -81,6 +108,7 @@ def get_db_connection():
         cursor.execute(f"ATTACH DATABASE '{p}' AS {alias};")
 
     return conn, cursor
+
 
 def search_context(query_str, max_results=5):
     conn, cursor = get_db_connection()
