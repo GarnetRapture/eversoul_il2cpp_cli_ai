@@ -273,15 +273,122 @@ def search_context(query_str, max_results=5):
 
     conn.close()
 
+    # Extended Data Processing (Live TBL, Global Proto, schema Response JSON & sno Relationship Tracer)
+    base_dir = os.path.dirname(DB_DIR)
+    live_dir = os.path.join(base_dir, "Live")
+    global_dir = os.path.join(base_dir, "Global")
+    schema_dir = os.path.join(base_dir, "schema")
+
+    tbl_matches = []
+    proto_matches = []
+    schema_matches = []
+    sno_trace_info = []
+    sample_response_payload = {}
+
+    query_lower = query_clean.lower()
+    is_numeric_sno = query_clean.isdigit()
+
+    # 1. Search Live TBL JSONs
+    if os.path.exists(live_dir):
+        for fname in os.listdir(live_dir):
+            if fname.endswith(".json"):
+                tbl_name = fname[:-5]
+                fpath = os.path.join(live_dir, fname)
+                if query_lower in tbl_name.lower():
+                    try:
+                        with open(fpath, "r", encoding="utf-8", errors="ignore") as f:
+                            data = json.load(f)
+                            row_count = len(data) if isinstance(data, list) else 1
+                            sample = data[0] if isinstance(data, list) and data else data
+                            tbl_matches.append({
+                                "table_name": tbl_name,
+                                "file_name": fname,
+                                "row_count": row_count,
+                                "sample_structure": list(sample.keys()) if isinstance(sample, dict) else []
+                            })
+                    except Exception:
+                        pass
+                elif is_numeric_sno:
+                    try:
+                        with open(fpath, "r", encoding="utf-8", errors="ignore") as f:
+                            data = json.load(f)
+                            if isinstance(data, list):
+                                target_sno = int(query_clean)
+                                for item in data:
+                                    if isinstance(item, dict) and item.get("sno") == target_sno:
+                                        tbl_matches.append({
+                                            "table_name": tbl_name,
+                                            "file_name": fname,
+                                            "matched_sno_data": item
+                                        })
+                                        break
+                    except Exception:
+                        pass
+
+    # 2. Search Global Protobuf Definitions
+    if os.path.exists(global_dir):
+        for root_p, _, files in os.walk(global_dir):
+            for fname in files:
+                if fname.endswith(".proto"):
+                    p_name = fname[:-6]
+                    if query_lower in p_name.lower():
+                        rel_path = os.path.relpath(os.path.join(root_p, fname), base_dir)
+                        try:
+                            with open(os.path.join(root_p, fname), "r", encoding="utf-8", errors="ignore") as f:
+                                content = f.read()
+                                proto_matches.append({
+                                    "proto_name": p_name,
+                                    "relative_path": rel_path,
+                                    "content_preview": [line.strip() for line in content.splitlines() if line.strip() and not line.strip().startswith("//")][:15]
+                                })
+                        except Exception:
+                            pass
+
+    # 3. Search Schema Response JSONs
+    if os.path.exists(schema_dir):
+        for fname in os.listdir(schema_dir):
+            if fname.endswith(".json"):
+                s_name = fname[:-5]
+                if query_lower in s_name.lower():
+                    fpath = os.path.join(schema_dir, fname)
+                    try:
+                        with open(fpath, "r", encoding="utf-8", errors="ignore") as f:
+                            s_data = json.load(f)
+                            schema_matches.append({
+                                "schema_name": s_name,
+                                "file_name": fname,
+                                "schema_definition": s_data
+                            })
+                            if not sample_response_payload:
+                                sample_response_payload = s_data
+                    except Exception:
+                        pass
+
+    # 4. sno Technical Relationship Tracer & End-to-End Pipeline Analysis
+    sno_concept_explanation = {
+        "definition": "sno (Serial Number / Sequence Number / Static Data Unique ID)",
+        "il2cpp_csharp_meaning": "In Unity IL2CPP C# architecture, 'sno' represents the Primary Key (PK) field of Static Data Tables (e.g. HeroTbl, ItemTbl, SkillTbl, StageTbl). It is referenced by methods like TblManager.GetHeroTbl(int sno).",
+        "apk_response_role": "Game server responses send lightweight integer 'sno' identifiers in Protobuf/JSON packets instead of bulky text data. The client APK uses this 'sno' to look up localized string resources, icons, and attributes stored in Live/*.json data tables.",
+        "end_to_end_relationship_chain": "IL2CPP Class (e.g. HeroTbl, VA 0x...) <---> sno Field (PK) <---> Live/*.json Game Table <---> Protobuf Packet (*.proto) <---> JSON Response Schema <---> APK Client UI Binding"
+    }
+
     full_ai_context = {
         "author": AUTHOR_URL,
         "version": VERSION,
         "query": query_str,
         "matched_types_count": len(type_contexts),
         "types_context": type_contexts,
-        "additional_matched_context": additional_context
+        "additional_matched_context": additional_context,
+        "multi_domain_extended_system": {
+            "sno_technical_analysis": sno_concept_explanation,
+            "tbl_game_data_matches": tbl_matches,
+            "protobuf_definitions": proto_matches,
+            "network_response_schemas": schema_matches,
+            "sample_response_payload": sample_response_payload
+        }
     }
     return full_ai_context
+
 
 def print_banner(lang="en"):
     banner = r"""
@@ -453,6 +560,54 @@ def render_result(context, lang="en"):
     if context["additional_matched_context"]:
         print(f"{Colors.MAGENTA}{Colors.BOLD}{labels['additional']}{Colors.RESET}")
         print(json.dumps(context["additional_matched_context"], indent=2, ensure_ascii=False))
+
+    # Render Multi-Domain Extended System (TBL, Proto, Schema, sno Technical Tracer)
+    ext = context.get("multi_domain_extended_system", {})
+    if ext:
+        print(f"\n{Colors.YELLOW}{Colors.BOLD}===================================================================={Colors.RESET}")
+        print(f"{Colors.YELLOW}{Colors.BOLD}   [ MULTI-DOMAIN EXTENDED DATABASE & SNO TRACE SYSTEM ]{Colors.RESET}")
+        print(f"{Colors.YELLOW}{Colors.BOLD}===================================================================={Colors.RESET}\n")
+
+        sno_info = ext.get("sno_technical_analysis", {})
+        print(f"{Colors.CYAN}{Colors.BOLD}* [sno Technical Analysis & IL2CPP Relationship] *{Colors.RESET}")
+        print(f"  {Colors.GREEN}Definition:{Colors.RESET} {sno_info.get('definition')}")
+        print(f"  {Colors.GREEN}IL2CPP C# Meaning:{Colors.RESET} {sno_info.get('il2cpp_csharp_meaning')}")
+        print(f"  {Colors.GREEN}APK Response Role:{Colors.RESET} {sno_info.get('apk_response_role')}")
+        print(f"  {Colors.GREEN}Relationship Chain:{Colors.RESET} {sno_info.get('end_to_end_relationship_chain')}\n")
+
+        tbls = ext.get("tbl_game_data_matches", [])
+        if tbls:
+            print(f"{Colors.CYAN}{Colors.BOLD}* [Matched Live TBL Game Tables ({len(tbls)})] *{Colors.RESET}")
+            for t in tbls[:5]:
+                print(f"  - {Colors.WHITE}{t['table_name']}{Colors.RESET} ({t['file_name']})")
+                if "row_count" in t:
+                    print(f"    Rows: {Colors.GREEN}{t['row_count']}{Colors.RESET} | Structure Keys: {Colors.DIM}{t['sample_structure'][:8]}{Colors.RESET}")
+                if "matched_sno_data" in t:
+                    print(f"    Matched sno Row Data: {Colors.YELLOW}{t['matched_sno_data']}{Colors.RESET}")
+            print()
+
+        protos = ext.get("protobuf_definitions", [])
+        if protos:
+            print(f"{Colors.CYAN}{Colors.BOLD}* [Matched Protobuf Network Packet Definitions ({len(protos)})] *{Colors.RESET}")
+            for p in protos[:5]:
+                print(f"  - {Colors.WHITE}{p['proto_name']}{Colors.RESET} ({p['relative_path']})")
+                if p.get("content_preview"):
+                    print(f"    Preview: {Colors.DIM}{p['content_preview'][:3]}{Colors.RESET}")
+            print()
+
+        schemas = ext.get("network_response_schemas", [])
+        if schemas:
+            print(f"{Colors.CYAN}{Colors.BOLD}* [Matched Network Response JSON Schemas ({len(schemas)})] *{Colors.RESET}")
+            for s in schemas[:3]:
+                print(f"  - {Colors.WHITE}{s['schema_name']}{Colors.RESET} ({s['file_name']})")
+            print()
+
+        sample_payload = ext.get("sample_response_payload")
+        if sample_payload:
+            print(f"{Colors.MAGENTA}{Colors.BOLD}* [Sample Network Response Payload Schema] *{Colors.RESET}")
+            print(json.dumps(sample_payload, indent=2, ensure_ascii=False)[:1000])
+            print(f"{Colors.DIM}... (truncated for display readability){Colors.RESET}\n")
+
 
 def interactive_loop():
     print(f"{Colors.YELLOW}{Colors.BOLD}[Interactive Console Mode / 대화형 검색 콘솔]{Colors.RESET}")

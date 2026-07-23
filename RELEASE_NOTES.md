@@ -10,8 +10,10 @@ The IL2CPP Multi-DB Sharded Engine provides a high-performance command-line inte
 
 ### Key Architectural Highlights
 
+- **Multi-Domain Extended System & `sno` Relationship Tracer**: Cross-queries IL2CPP C# metadata, static game table dumps (`Live/*.json`), Protobuf network packet definitions (`Global/**/*.proto`), and network response JSON schemas (`schema/*.json`). Dynamically traces the end-to-end relationship chain of `sno` (Static Data Primary Key) across C# metadata, game tables, and client/server network payloads.
 - **Interactive Console REPL Mode**: When launched without command-line search arguments (e.g. double-clicking `cli_search.exe`), the engine enters an interactive loop (`cli_search > `) allowing continuous queries without closing the terminal.
 - **High-Performance Database Engine**: Utilizes SQLite's dynamic `ATTACH DATABASE` feature to cross-query 9 sub-databases concurrently in a unified relational schema.
+
 
 - **SQLite Performance Tuning & PRAGMA Optimizations**: Applied `PRAGMA synchronous = OFF`, `PRAGMA journal_mode = OFF`, `PRAGMA cache_size = 20000`, and `PRAGMA temp_store = MEMORY` to maximize memory caching and eliminate disk I/O bottlenecks.
 - **Hybrid Auto-Relocation & Path Compatibility**: Automatically detects whether `.db` files exist in the root folder or a `database/` subfolder. If `.db` files are found in the root executable directory, the engine automatically creates a `database/` directory, relocates all `.db` files into it, and proceeds with execution seamlessly.
