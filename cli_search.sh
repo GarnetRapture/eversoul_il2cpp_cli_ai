@@ -433,6 +433,43 @@ def render_result(context, lang="en"):
         print(f"{Colors.MAGENTA}{Colors.BOLD}{labels['additional']}{Colors.RESET}")
         print(json.dumps(context["additional_matched_context"], indent=2, ensure_ascii=False))
 
+def interactive_loop():
+    print(f"{Colors.YELLOW}{Colors.BOLD}[Interactive Console Mode / 대화형 검색 콘솔]{Colors.RESET}")
+    print(f"{Colors.WHITE}Type search query (e.g. CameraCapturedBlurImage, 0x0417BE60) or 'q' / 'exit' to quit.{Colors.RESET}")
+    print(f"{Colors.WHITE}검색어(클래스명, 가상주소 등)를 입력하십시오. (종료: q 또는 exit 입력){Colors.RESET}\n")
+
+    while True:
+        try:
+            prompt_str = f"{Colors.CYAN}{Colors.BOLD}cli_search > {Colors.RESET}"
+            user_input = input(prompt_str).strip()
+            if not user_input:
+                continue
+            if user_input.lower() in ["q", "quit", "exit", "exit()", "종료"]:
+                print(f"{Colors.GREEN}Exiting engine... / 엔진을 종료합니다.{Colors.RESET}")
+                break
+
+            parts = user_input.split()
+            query_str = parts[0]
+            lang = "en"
+            json_mode = False
+            for p in parts[1:]:
+                if p.lower() in ["--lang=ko", "-l=ko", "ko", "--ko", "한국어"]:
+                    lang = "ko"
+                elif p.lower() in ["--json", "-j", "json"]:
+                    json_mode = True
+
+            context = search_context(query_str)
+            if json_mode:
+                print(json.dumps(context, indent=2, ensure_ascii=False))
+            else:
+                render_result(context, lang)
+
+        except (KeyboardInterrupt, EOFError):
+            print(f"\n{Colors.GREEN}Exiting engine... / 엔진을 종료합니다.{Colors.RESET}")
+            break
+        except Exception as e:
+            print(f"{Colors.RED}[ERROR / 오류] Query execution failed: {e}{Colors.RESET}\n")
+
 def main():
     init_console()
 
@@ -443,13 +480,13 @@ def main():
         print(f"{Colors.GREEN}IL2CPP AI Context Engine Version: v{VERSION}{Colors.RESET}")
         sys.exit(0)
 
-    if help_mode or not query:
+    if help_mode:
         print_detailed_help(lang)
-        if len(sys.argv) <= 1:
-            try:
-                input(f"{Colors.YELLOW}\nPress Enter to exit... / 종료하려면 Enter 키를 누르십시오...{Colors.RESET}")
-            except (EOFError, KeyboardInterrupt):
-                pass
+        sys.exit(0)
+
+    if not query:
+        print_detailed_help(lang)
+        interactive_loop()
         sys.exit(0)
 
     context = search_context(query)
@@ -462,4 +499,5 @@ def main():
 if __name__ == "__main__":
     main()
 EOF
+
 
