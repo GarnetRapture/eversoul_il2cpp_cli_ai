@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package ReqPb;
-
-message EventDoubleStageReset {
-  int32 eventGroup = 1;
-  int32 eventNumber = 2;
-}
-

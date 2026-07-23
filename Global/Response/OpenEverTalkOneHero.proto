@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package EsPb;
-
-message OpenEverTalkOneHero {
-  int32 heroNo = 1;
-}
-

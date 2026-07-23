@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package ReqPb;
-
-message LabyrinthRelicShopBuyNothing {
-  int32 dungeonId = 1;
-  int32 uid = 2;
-}
-

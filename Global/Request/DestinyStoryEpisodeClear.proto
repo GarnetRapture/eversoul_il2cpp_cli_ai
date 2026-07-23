@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package ReqPb;
-
-message DestinyStoryEpisodeClear {
-  int32 storyNo = 1;
-  string talkNoList = 2;
-}
-

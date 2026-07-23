@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package ReqPb;
-
-message SoulLinkBuffOpen {
-  int32 collectionNo = 1;
-}
-

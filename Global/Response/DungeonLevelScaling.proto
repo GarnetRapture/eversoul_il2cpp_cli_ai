@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package EsPb;
-
-message DungeonLevelScaling {
-  int32 scalingLevel = 1;
-}
-

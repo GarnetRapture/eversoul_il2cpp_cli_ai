@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package ReqPb;
-
-message UserNicknameChange {
-  string nickName = 1;
-}
-

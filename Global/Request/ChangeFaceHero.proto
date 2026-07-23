@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package ReqPb;
-
-message ChangeFaceHero {
-  int32 heroNo = 1;
-  string lobbyHeroNoList = 2;
-}
-

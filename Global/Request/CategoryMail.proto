@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package ReqPb;
-
-message CategoryMail {
-  int32 categoryFlag = 1;
-  string languageCode = 2;
-}
-

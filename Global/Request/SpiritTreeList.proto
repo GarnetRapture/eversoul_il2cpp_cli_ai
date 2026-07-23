@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package ReqPb;
-
-message SpiritTreeList {
-  repeated string beforeHeroIdx = 1;
-  repeated string afterHeroIdx = 2;
-}
-

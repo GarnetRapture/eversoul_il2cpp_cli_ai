@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package EsPb;
-
-message SdCharacterChange {
-  int32 sdHeroNo = 1;
-}
-

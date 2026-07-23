@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package ReqPb;
-
-message LabyrinthClear {
-  int32 dungeonId = 1;
-}
-

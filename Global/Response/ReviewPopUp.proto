@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package EsPb;
-
-message ReviewPopUp {
-  int64 reviewDt = 1;
-  int32 flag = 2;
-}
-

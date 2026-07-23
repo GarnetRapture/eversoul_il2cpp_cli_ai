@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package ReqPb;
-
-message GuildEmblemCustomSave {
-  string guildIdx = 1;
-  bytes customEmblem = 2;
-}
-

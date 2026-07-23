@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package ReqPb;
-
-message RankingAchievementPopup {
-  int32 rankNo = 1;
-}
-

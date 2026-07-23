@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package EsPb;
-
-message UpdatePaymentAgreeDt {
-  int64 paymentAgreeDt = 1;
-  int32 paymentAgreeType = 2;
-}
-

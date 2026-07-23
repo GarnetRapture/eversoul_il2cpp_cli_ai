@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package EsPb;
-
-message ChangeType {
-  int32 type = 1;
-  string playerId = 2;
-}
-

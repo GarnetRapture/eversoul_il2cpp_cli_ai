@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package ReqPb;
-
-message SignatureUnEquip {
-  int32 no = 1;
-  string heroIdx = 2;
-}
-

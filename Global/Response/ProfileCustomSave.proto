@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package EsPb;
-
-message ProfileCustomSave {
-  int32 uid = 1;
-}
-

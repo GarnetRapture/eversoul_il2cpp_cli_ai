@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package ReqPb;
-
-message ItemUseAbleItems {
-  int32 itemNo = 1;
-}
-

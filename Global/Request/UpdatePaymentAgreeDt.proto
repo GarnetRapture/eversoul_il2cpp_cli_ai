@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package ReqPb;
-
-message UpdatePaymentAgreeDt {
-  int32 paymentAgreeType = 1;
-}
-

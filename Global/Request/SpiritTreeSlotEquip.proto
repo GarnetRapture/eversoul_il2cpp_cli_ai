@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package ReqPb;
-
-message SpiritTreeSlotEquip {
-  int32 slotNo = 1;
-  string heroIdx = 2;
-}
-

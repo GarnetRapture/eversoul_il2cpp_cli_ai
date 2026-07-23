@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package ReqPb;
-
-message SetEverTalkMemorialPicture {
-  int32 talkNo = 1;
-  string memorialMessage = 2;
-}
-

@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package ReqPb;
-
-message OtherUserTownVisit {
-  string otherUserIdx = 1;
-  bool isVisitBattle = 2;
-}
-

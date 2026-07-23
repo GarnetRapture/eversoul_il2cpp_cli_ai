@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package EsPb;
-
-message ProfileBase {
-  string profileBase_ = 1;
-}
-

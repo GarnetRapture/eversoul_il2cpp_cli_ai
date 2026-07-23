@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package ReqPb;
-
-message EventDoubleStageInfo {
-  int32 getBuff = 1;
-}
-

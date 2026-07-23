@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package ReqPb;
-
-message MailItemAllReceive {
-  int32 categoryFlag = 1;
-}
-

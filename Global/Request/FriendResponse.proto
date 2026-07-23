@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package ReqPb;
-
-message FriendResponse {
-  string requestUserIdx = 1;
-  int32 decision = 2;
-}
-

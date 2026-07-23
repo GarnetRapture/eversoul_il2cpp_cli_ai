@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package EsPb;
-
-message UserAboutChange {
-  string about = 1;
-}
-

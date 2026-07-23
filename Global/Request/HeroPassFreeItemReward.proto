@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package ReqPb;
-
-message HeroPassFreeItemReward {
-  int32 shopNo = 1;
-  int32 heroGrade = 2;
-}
-

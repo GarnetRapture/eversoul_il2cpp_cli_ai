@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package ReqPb;
-
-message DungeonObjectReward {
-  int32 dungeonId = 1;
-  string dungeonObjectReward_ = 2;
-}
-

@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package ReqPb;
-
-message TownInfoData {
-  int32 loggingNumber = 1;
-}
-

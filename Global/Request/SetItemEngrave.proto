@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package ReqPb;
-
-message SetItemEngrave {
-  int64 itemEquipId = 1;
-}
-

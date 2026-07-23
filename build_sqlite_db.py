@@ -2,6 +2,8 @@ import json
 import sqlite3
 import os
 import time
+import zlib
+
 
 DB_DIR = "database"
 JSON_PATH = "il2cpp.json"
@@ -21,12 +23,17 @@ db_files = {
     "sig1": sqlite3.connect(os.path.join(DB_DIR, "signatures_1.db")),
     "sig2": sqlite3.connect(os.path.join(DB_DIR, "signatures_2.db")),
     "sig3": sqlite3.connect(os.path.join(DB_DIR, "signatures_3.db")),
-    "sig4": sqlite3.connect(os.path.join(DB_DIR, "signatures_4.db")),
     "m1": sqlite3.connect(os.path.join(DB_DIR, "methods_1.db")),
     "m2": sqlite3.connect(os.path.join(DB_DIR, "methods_2.db")),
     "pointers": sqlite3.connect(os.path.join(DB_DIR, "pointers.db")),
-    "symbols": sqlite3.connect(os.path.join(DB_DIR, "symbols.db"))
+    "sym_meta": sqlite3.connect(os.path.join(DB_DIR, "symbols_meta.db")),
+    "sym_tbl1": sqlite3.connect(os.path.join(DB_DIR, "symbols_tbl1.db")),
+    "sym_tbl2": sqlite3.connect(os.path.join(DB_DIR, "symbols_tbl2.db"))
 }
+
+
+
+
 
 for conn in db_files.values():
     conn.execute("PRAGMA page_size = 65536;")
@@ -53,13 +60,14 @@ CREATE TABLE dotnet_signatures (
 );
 """)
 
-for k in ["sig1", "sig2", "sig3", "sig4"]:
+for k in ["sig1", "sig2", "sig3"]:
     db_files[k].executescript("""
     CREATE TABLE signatures (
         id INTEGER PRIMARY KEY,
         signature TEXT UNIQUE NOT NULL
     );
     """)
+
 
 for k in ["m1", "m2"]:
     db_files[k].executescript("""
@@ -106,7 +114,7 @@ CREATE TABLE method_invokers (
 );
 """)
 
-db_files["symbols"].executescript("""
+db_files["sym_meta"].executescript("""
 CREATE TABLE string_literals (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     virtual_address TEXT,
@@ -149,10 +157,56 @@ CREATE TABLE field_rvas (
 );
 
 CREATE TABLE function_addresses (
-    func_index INTEGER PRIMARY KEY,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    func_index INTEGER,
     virtual_address TEXT
-) WITHOUT ROWID;
+);
+
+CREATE TABLE proto_definitions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    proto_name TEXT UNIQUE NOT NULL,
+    rel_path TEXT NOT NULL,
+    content TEXT NOT NULL
+);
+
+CREATE TABLE schema_definitions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    schema_name TEXT UNIQUE NOT NULL,
+    content TEXT NOT NULL
+);
 """)
+
+db_files["sym_tbl1"].executescript("""
+CREATE TABLE tbl_game_data (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    table_name TEXT UNIQUE NOT NULL,
+    content BLOB NOT NULL,
+    row_count INTEGER DEFAULT 0,
+    is_compressed INTEGER DEFAULT 1
+);
+""")
+
+db_files["sym_tbl2"].executescript("""
+CREATE TABLE tbl_game_data (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    table_name TEXT UNIQUE NOT NULL,
+    content BLOB NOT NULL,
+    row_count INTEGER DEFAULT 0,
+    is_compressed INTEGER DEFAULT 1
+);
+""")
+
+
+
+
+
+
+
+
+
+
+
+
 
 print("Loading JSON source file...")
 t0 = time.time()
@@ -191,7 +245,7 @@ def get_type_id(group_str):
         return tid
     return type_cache[key]
 
-print("Migrating signatures into 4-way sharded DBs...")
+print("Migrating signatures into 3-way sharded DBs...")
 all_sigs = set()
 all_dotnet_sigs = set()
 
@@ -210,24 +264,21 @@ cur_index.execute("SELECT dotnet_signature, id FROM dotnet_signatures;")
 dotnet_sig_cache = dict(cur_index.fetchall())
 
 sorted_sigs = sorted(list(all_sigs))
-q = len(sorted_sigs) // 4
+q = len(sorted_sigs) // 3
 
 sig1_rows = [(idx + 1, sig) for idx, sig in enumerate(sorted_sigs[:q])]
 sig2_rows = [(q + idx + 1, sig) for idx, sig in enumerate(sorted_sigs[q:2*q])]
-sig3_rows = [(2*q + idx + 1, sig) for idx, sig in enumerate(sorted_sigs[2*q:3*q])]
-sig4_rows = [(3*q + idx + 1, sig) for idx, sig in enumerate(sorted_sigs[3*q:])]
+sig3_rows = [(2*q + idx + 1, sig) for idx, sig in enumerate(sorted_sigs[2*q:])]
 
 db_files["sig1"].cursor().executemany("INSERT INTO signatures (id, signature) VALUES (?, ?);", sig1_rows)
 db_files["sig2"].cursor().executemany("INSERT INTO signatures (id, signature) VALUES (?, ?);", sig2_rows)
 db_files["sig3"].cursor().executemany("INSERT INTO signatures (id, signature) VALUES (?, ?);", sig3_rows)
-db_files["sig4"].cursor().executemany("INSERT INTO signatures (id, signature) VALUES (?, ?);", sig4_rows)
 
-sig_cache = {}
-for sid, sig in sig1_rows + sig2_rows + sig3_rows + sig4_rows:
-    sig_cache[sig] = sid
+sig_cache = {sig: idx + 1 for idx, sig in enumerate(sorted_sigs)}
 
-for k in ["index", "sig1", "sig2", "sig3", "sig4"]:
+for k in ["index", "sig1", "sig2", "sig3"]:
     db_files[k].commit()
+
 
 print("Migrating methods into 2-way sharded DBs (methods_1.db, methods_2.db)...")
 all_methods = []
@@ -273,32 +324,88 @@ cur_pointers.executemany("INSERT INTO method_invokers (virtual_address, name, si
 
 db_files["pointers"].commit()
 
-print("Migrating symbols.db...")
-cur_symbols = db_files["symbols"].cursor()
-db_files["symbols"].execute("BEGIN TRANSACTION;")
+print("Migrating symbols_meta.db, symbols_tbl1.db, symbols_tbl2.db...")
+cur_sym_meta = db_files["sym_meta"].cursor()
+cur_sym_tbl1 = db_files["sym_tbl1"].cursor()
+cur_sym_tbl2 = db_files["sym_tbl2"].cursor()
+
+db_files["sym_meta"].execute("BEGIN TRANSACTION;")
+db_files["sym_tbl1"].execute("BEGIN TRANSACTION;")
+db_files["sym_tbl2"].execute("BEGIN TRANSACTION;")
 
 str_list = [(s.get("virtualAddress"), s.get("name"), s.get("string")) for s in address_map.get("stringLiterals", []) if s.get("string")]
-cur_symbols.executemany("INSERT INTO string_literals (virtual_address, name, value) VALUES (?, ?, ?);", str_list)
+cur_sym_meta.executemany("INSERT INTO string_literals (virtual_address, name, value) VALUES (?, ?, ?);", str_list)
 
 api_list = [(a.get("virtualAddress"), a.get("name"), sig_cache.get(a.get("signature"))) for a in address_map.get("apis", [])]
-cur_symbols.executemany("INSERT INTO apis (virtual_address, name, signature_id) VALUES (?, ?, ?);", api_list)
+cur_sym_meta.executemany("INSERT INTO apis (virtual_address, name, signature_id) VALUES (?, ?, ?);", api_list)
 
 exp_list = [(e.get("virtualAddress"), e.get("name")) for e in address_map.get("exports", [])]
-cur_symbols.executemany("INSERT INTO exports (virtual_address, name) VALUES (?, ?);", exp_list)
+cur_sym_meta.executemany("INSERT INTO exports (virtual_address, name) VALUES (?, ?);", exp_list)
 
 sym_list = [(s.get("virtualAddress"), s.get("name"), s.get("type")) for s in address_map.get("symbols", []) if s.get("name")]
-cur_symbols.executemany("INSERT INTO symbols (virtual_address, name, symbol_type) VALUES (?, ?, ?);", sym_list)
+cur_sym_meta.executemany("INSERT INTO symbols (virtual_address, name, symbol_type) VALUES (?, ?, ?);", sym_list)
 
 fld_list = [(f.get("virtualAddress"), f.get("name"), f.get("value")) for f in address_map.get("fields", [])]
-cur_symbols.executemany("INSERT INTO fields (virtual_address, name, value) VALUES (?, ?, ?);", fld_list)
+cur_sym_meta.executemany("INSERT INTO fields (virtual_address, name, value) VALUES (?, ?, ?);", fld_list)
 
 rva_list = [(f.get("virtualAddress"), f.get("name"), f.get("value")) for f in address_map.get("fieldRvas", [])]
-cur_symbols.executemany("INSERT INTO field_rvas (virtual_address, name, value) VALUES (?, ?, ?);", rva_list)
+cur_sym_meta.executemany("INSERT INTO field_rvas (virtual_address, name, value) VALUES (?, ?, ?);", rva_list)
 
 fa_list = [(idx, addr) for idx, addr in enumerate(address_map.get("functionAddresses", [])) if addr != "0x00000000"]
-cur_symbols.executemany("INSERT INTO function_addresses (func_index, virtual_address) VALUES (?, ?);", fa_list)
+cur_sym_meta.executemany("INSERT INTO function_addresses (func_index, virtual_address) VALUES (?, ?);", fa_list)
 
-db_files["symbols"].commit()
+print("Ingesting Live TBL into symbols_tbl1.db (A-R zlib compressed) and symbols_tbl2.db (S-Z zlib compressed)...")
+live_dir = "Live"
+if os.path.exists(live_dir):
+    for fname in os.listdir(live_dir):
+        if fname.endswith(".json"):
+            tbl_name = fname[:-5]
+            fpath = os.path.join(live_dir, fname)
+            try:
+                with open(fpath, "r", encoding="utf-8", errors="ignore") as f:
+                    data = json.load(f)
+                    compressed_bytes = zlib.compress(json.dumps(data, separators=(',', ':')).encode('utf-8'), level=9)
+                    rc = len(data) if isinstance(data, list) else 1
+                    first_char = tbl_name[0].upper() if tbl_name else 'A'
+                    target_cur = cur_sym_tbl1 if first_char <= 'R' else cur_sym_tbl2
+                    target_cur.execute("INSERT OR REPLACE INTO tbl_game_data (table_name, content, row_count, is_compressed) VALUES (?, ?, ?, 1);", (tbl_name, compressed_bytes, rc))
+            except Exception:
+                pass
+
+
+
+print("Ingesting Global Proto and schema into symbols_meta.db...")
+global_dir = "Global"
+if os.path.exists(global_dir):
+    for root_p, _, files in os.walk(global_dir):
+        for fname in files:
+            if fname.endswith(".proto"):
+                p_name = fname[:-6]
+                fpath = os.path.join(root_p, fname)
+                rel_p = os.path.relpath(fpath, ".")
+                try:
+                    with open(fpath, "r", encoding="utf-8", errors="ignore") as f:
+                        c_str = f.read()
+                        cur_sym_meta.execute("INSERT OR REPLACE INTO proto_definitions (proto_name, rel_path, content) VALUES (?, ?, ?);", (p_name, rel_p, c_str))
+                except Exception:
+                    pass
+
+schema_dir = "schema"
+if os.path.exists(schema_dir):
+    for fname in os.listdir(schema_dir):
+        if fname.endswith(".json"):
+            s_name = fname[:-5]
+            fpath = os.path.join(schema_dir, fname)
+            try:
+                with open(fpath, "r", encoding="utf-8", errors="ignore") as f:
+                    c_str = f.read()
+                    cur_sym_meta.execute("INSERT OR REPLACE INTO schema_definitions (schema_name, content) VALUES (?, ?);", (s_name, c_str))
+            except Exception:
+                pass
+
+db_files["sym_meta"].commit()
+db_files["sym_tbl1"].commit()
+db_files["sym_tbl2"].commit()
 
 print("Building indexes...")
 cur_index.executescript("""
@@ -306,8 +413,17 @@ CREATE INDEX idx_types_asm ON types(assembly_id);
 CREATE INDEX idx_types_name ON types(full_name);
 """)
 
-for k in ["sig1", "sig2", "sig3", "sig4"]:
+for k in ["sig1", "sig2", "sig3"]:
     db_files[k].execute("CREATE INDEX idx_sig_val ON signatures(signature);")
+
+cur_sym_meta.execute("CREATE INDEX idx_strings_vaddr ON string_literals(virtual_address);")
+cur_sym_meta.execute("CREATE INDEX idx_strings_val ON string_literals(value);")
+cur_sym_meta.execute("CREATE INDEX idx_symbols_vaddr ON symbols(virtual_address);")
+cur_sym_meta.execute("CREATE INDEX idx_symbols_name ON symbols(name);")
+
+
+
+
 
 for k in ["m1", "m2"]:
     db_files[k].executescript("""
@@ -323,12 +439,10 @@ CREATE INDEX idx_method_info_vaddr ON method_info_pointers(virtual_address);
 CREATE INDEX idx_method_info_maddr ON method_info_pointers(method_address);
 """)
 
-cur_symbols.executescript("""
-CREATE INDEX idx_strings_vaddr ON string_literals(virtual_address);
-CREATE INDEX idx_strings_val ON string_literals(value);
-CREATE INDEX idx_symbols_vaddr ON symbols(virtual_address);
-CREATE INDEX idx_symbols_name ON symbols(name);
-""")
+
+
+
+
 
 for conn in db_files.values():
     conn.commit()

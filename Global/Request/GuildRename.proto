@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package ReqPb;
-
-message GuildRename {
-  string guildIdx = 1;
-  string guildName = 2;
-}
-

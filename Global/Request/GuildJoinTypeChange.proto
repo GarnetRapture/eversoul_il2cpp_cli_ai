@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package ReqPb;
-
-message GuildJoinTypeChange {
-  string guildIdx = 1;
-  int32 joinType = 2;
-}
-

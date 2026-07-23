@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package ReqPb;
-
-message ZodiacMainActive {
-  int32 zodiacNo = 1;
-}
-

@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package EsPb;
-
-message DungeonOpenCheck {
-  bool isLabyrinthOpen = 1;
-  bool isRotationDungeonOpen = 2;
-}
-

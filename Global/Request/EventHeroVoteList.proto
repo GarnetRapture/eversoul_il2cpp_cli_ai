@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package ReqPb;
-
-message EventHeroVoteList {
-  int32 eventGroup = 1;
-}
-

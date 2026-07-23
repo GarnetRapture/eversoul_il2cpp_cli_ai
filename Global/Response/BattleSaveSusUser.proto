@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package EsPb;
-
-message BattleSaveSusUser {
-  int32 result = 1;
-}
-

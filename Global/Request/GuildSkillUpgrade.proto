@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package ReqPb;
-
-message GuildSkillUpgrade {
-  string guildIdx = 1;
-  string guildSkill = 2;
-}
-

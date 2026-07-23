@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package ReqPb;
-
-message ZodiacPresetNameSave {
-  int64 presetIdx = 1;
-  string presetName = 2;
-}
-

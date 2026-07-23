@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package EsPb;
-
-message TripKeyword {
-  string tripKeyword_ = 1;
-}
-

@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package ReqPb;
-
-message EventPassBuyPoint {
-  int32 group = 1;
-  int32 eventNumber = 2;
-}
-

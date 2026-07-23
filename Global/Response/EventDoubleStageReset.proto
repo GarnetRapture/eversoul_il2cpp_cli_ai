@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package EsPb;
-
-message EventDoubleStageReset {
-  int32 difficulty = 1;
-}
-

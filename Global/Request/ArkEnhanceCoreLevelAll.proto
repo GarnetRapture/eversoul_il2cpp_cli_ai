@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package ReqPb;
-
-message ArkEnhanceCoreLevelAll {
-  int32 coreLevel = 1;
-}
-

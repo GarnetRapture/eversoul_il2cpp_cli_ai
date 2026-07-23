@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package ReqPb;
-
-message StoryClear {
-  int32 storyNo = 1;
-}
-

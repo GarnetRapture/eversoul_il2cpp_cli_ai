@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package ReqPb;
-
-message ItemStickerList {
-  string otherUserIdx = 1;
-}
-

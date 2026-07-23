@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package ReqPb;
-
-message AutoRelease {
-  int32 heroAutoRelease = 1;
-  int32 signatureAutoRelease = 2;
-}
-

@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package ReqPb;
-
-message HeroEquipPresetList {
-  int32 presetSlot = 1;
-}
-

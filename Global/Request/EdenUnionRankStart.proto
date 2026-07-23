@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package ReqPb;
-
-message EdenUnionRankStart {
-  repeated int32 constraintNo = 1;
-}
-

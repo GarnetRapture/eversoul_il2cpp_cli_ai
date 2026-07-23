@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package EsPb;
-
-message GuildTimeCheck {
-  int64 rejoinTimestamp = 1;
-  int64 renameTimestamp = 2;
-}
-

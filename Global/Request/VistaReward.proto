@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package ReqPb;
-
-message VistaReward {
-  int32 vistaNo = 1;
-}
-

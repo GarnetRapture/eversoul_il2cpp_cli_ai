@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package ReqPb;
-
-message RestIn {
-  repeated int32 heroNo = 1;
-}
-

@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package EsPb;
-
-message EdenUnionRankStart {
-  repeated int32 lastSelectConstraintNo = 1;
-}
-

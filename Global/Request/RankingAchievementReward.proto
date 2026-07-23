@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package ReqPb;
-
-message RankingAchievementReward {
-  int32 no = 1;
-  int32 rankNo = 2;
-}
-

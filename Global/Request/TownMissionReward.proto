@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package ReqPb;
-
-message TownMissionReward {
-  int32 no = 1;
-  string otherUserIdx = 2;
-}
-

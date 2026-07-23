@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package EsPb;
-
-message BattleStart {
-  bool result = 1;
-}
-

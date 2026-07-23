@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package ReqPb;
-
-message WorldRaidFormationInfo {
-  int32 raidNo = 1;
-}
-

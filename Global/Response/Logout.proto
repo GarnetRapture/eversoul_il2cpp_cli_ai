@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package EsPb;
-
-message Logout {
-  int32 success = 1;
-}
-

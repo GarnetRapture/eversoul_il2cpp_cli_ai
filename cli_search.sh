@@ -16,7 +16,9 @@ import sqlite3
 import sys
 import json
 import os
+import zlib
 import argparse
+
 import shutil
 
 AUTHOR_URL = "https://github.com/GarnetRapture"
@@ -92,9 +94,7 @@ def get_db_connection():
     cursor.execute("PRAGMA synchronous = OFF;")
     cursor.execute("PRAGMA journal_mode = OFF;")
     cursor.execute("PRAGMA cache_size = 20000;")
-    cursor.execute("PRAGMA temp_store = MEMORY;")
-
-    db_names = [
+       db_names = [
         ("signatures_1.db", "sig1_db"),
         ("signatures_2.db", "sig2_db"),
         ("signatures_3.db", "sig3_db"),
@@ -102,7 +102,13 @@ def get_db_connection():
         ("methods_1.db", "m1_db"),
         ("methods_2.db", "m2_db"),
         ("pointers.db", "pointers_db"),
-        ("symbols.db", "symbols_db")
+        ("symbols_1.db", "sym1_db"),
+        ("symbols_2.db", "sym2_db"),
+        ("symbols_3.db", "sym3_db"),
+        ("symbols_4.db", "sym4_db"),
+        ("symbols_5.db", "sym5_db"),
+        ("symbols_6.db", "sym6_db"),
+        ("symbols_7.db", "sym7_db")
     ]
 
     for filename, alias in db_names:
@@ -113,7 +119,6 @@ def get_db_connection():
         cursor.execute(f"ATTACH DATABASE '{p}' AS {alias};")
 
     return conn, cursor
-
 
 def search_context(query_str, max_results=5):
     conn, cursor = get_db_connection()
@@ -135,6 +140,18 @@ def search_context(query_str, max_results=5):
         UNION ALL
         SELECT * FROM sig4_db.signatures
     """
+    tbl_union = """
+        SELECT table_name, content, row_count FROM sym2_db.tbl_game_data
+        UNION ALL
+        SELECT table_name, content, row_count FROM sym4_db.tbl_game_data
+        UNION ALL
+        SELECT table_name, content, row_count FROM sym5_db.tbl_game_data
+        UNION ALL
+        SELECT table_name, content, row_count FROM sym6_db.tbl_game_data
+        UNION ALL
+        SELECT table_name, content, row_count FROM sym7_db.tbl_game_data
+    """
+
 
     if is_address:
         cursor.execute(f"""
@@ -225,7 +242,7 @@ def search_context(query_str, max_results=5):
 
     additional_context = {}
     if is_address:
-        cursor.execute("SELECT * FROM symbols_db.string_literals WHERE virtual_address = ?", (query_clean,))
+        cursor.execute("SELECT * FROM sym1_db.string_literals WHERE virtual_address = ?", (query_clean,))
         str_lits = [dict(r) for r in cursor.fetchall()]
         if str_lits: additional_context["string_literals"] = str_lits
 
@@ -249,41 +266,34 @@ def search_context(query_str, max_results=5):
 
         cursor.execute(f"""
             SELECT a.virtual_address, a.name, sig.signature
-            FROM symbols_db.apis a
+            FROM sym1_db.apis a
             LEFT JOIN ({signatures_union}) sig ON a.signature_id = sig.id
             WHERE a.virtual_address = ?
         """, (query_clean,))
         apis = [dict(r) for r in cursor.fetchall()]
         if apis: additional_context["apis"] = apis
 
-        cursor.execute("SELECT * FROM symbols_db.exports WHERE virtual_address = ?", (query_clean,))
+        cursor.execute("SELECT * FROM sym1_db.exports WHERE virtual_address = ?", (query_clean,))
         exps = [dict(r) for r in cursor.fetchall()]
         if exps: additional_context["exports"] = exps
 
-        cursor.execute("SELECT * FROM symbols_db.symbols WHERE virtual_address = ?", (query_clean,))
+        cursor.execute("SELECT * FROM sym1_db.symbols WHERE virtual_address = ?", (query_clean,))
         syms = [dict(r) for r in cursor.fetchall()]
         if syms: additional_context["symbols"] = syms
 
-        cursor.execute("SELECT * FROM symbols_db.fields WHERE virtual_address = ?", (query_clean,))
+        cursor.execute("SELECT * FROM sym1_db.fields WHERE virtual_address = ?", (query_clean,))
         flds = [dict(r) for r in cursor.fetchall()]
         if flds: additional_context["fields"] = flds
     else:
-        cursor.execute("SELECT * FROM symbols_db.string_literals WHERE value LIKE ? LIMIT 5", (f"%{query_clean}%",))
+        cursor.execute("SELECT * FROM sym1_db.string_literals WHERE value LIKE ? LIMIT 5", (f"%{query_clean}%",))
         str_lits = [dict(r) for r in cursor.fetchall()]
         if str_lits: additional_context["matched_string_literals"] = str_lits
 
-        cursor.execute("SELECT * FROM symbols_db.symbols WHERE name LIKE ? LIMIT 5", (f"%{query_clean}%",))
+        cursor.execute("SELECT * FROM sym1_db.symbols WHERE name LIKE ? LIMIT 5", (f"%{query_clean}%",))
         syms = [dict(r) for r in cursor.fetchall()]
         if syms: additional_context["matched_symbols"] = syms
 
-    conn.close()
-
-    # Extended Data Processing (Live TBL, Global Proto, schema Response JSON & sno Relationship Tracer)
-    base_dir = os.path.dirname(DB_DIR)
-    live_dir = os.path.join(base_dir, "Live")
-    global_dir = os.path.join(base_dir, "Global")
-    schema_dir = os.path.join(base_dir, "schema")
-
+    # Extended Data Processing (SQLite Query based for TBL, Proto, Schema & sno Relationship Tracer)
     tbl_matches = []
     proto_matches = []
     schema_matches = []
@@ -292,78 +302,79 @@ def search_context(query_str, max_results=5):
     query_lower = query_clean.lower()
     is_numeric_sno = query_clean.isdigit()
 
-    if os.path.exists(live_dir):
-        for fname in os.listdir(live_dir):
-            if fname.endswith(".json"):
-                tbl_name = fname[:-5]
-                fpath = os.path.join(live_dir, fname)
-                if query_lower in tbl_name.lower():
+    # 1. Query SQLite sym_tbl1 and sym_tbl2 for TBL Game Data
+    try:
+        if is_numeric_sno:
+            target_sno = int(query_clean)
+            for tbl_db in ["sym_tbl1", "sym_tbl2"]:
+                cursor.execute(f"SELECT table_name, content, row_count, is_compressed FROM {tbl_db}.tbl_game_data")
+                rows = cursor.fetchall()
+                for r in rows:
                     try:
-                        with open(fpath, "r", encoding="utf-8", errors="ignore") as f:
-                            data = json.load(f)
-                            row_count = len(data) if isinstance(data, list) else 1
-                            sample = data[0] if isinstance(data, list) and data else data
-                            tbl_matches.append({
-                                "table_name": tbl_name,
-                                "file_name": fname,
-                                "row_count": row_count,
-                                "sample_structure": list(sample.keys()) if isinstance(sample, dict) else []
-                            })
-                    except Exception:
-                        pass
-                elif is_numeric_sno:
-                    try:
-                        with open(fpath, "r", encoding="utf-8", errors="ignore") as f:
-                            data = json.load(f)
+                        raw_content = r["content"]
+                        text_content = zlib.decompress(raw_content).decode('utf-8') if r["is_compressed"] else (raw_content if isinstance(raw_content, str) else raw_content.decode('utf-8'))
+                        if f'"sno": {target_sno}' in text_content or f'"sno":{target_sno}' in text_content:
+                            data = json.loads(text_content)
                             if isinstance(data, list):
-                                target_sno = int(query_clean)
                                 for item in data:
                                     if isinstance(item, dict) and item.get("sno") == target_sno:
                                         tbl_matches.append({
-                                            "table_name": tbl_name,
-                                            "file_name": fname,
+                                            "table_name": r["table_name"],
                                             "matched_sno_data": item
                                         })
                                         break
                     except Exception:
                         pass
-
-    if os.path.exists(global_dir):
-        for root_p, _, files in os.walk(global_dir):
-            for fname in files:
-                if fname.endswith(".proto"):
-                    p_name = fname[:-6]
-                    if query_lower in p_name.lower():
-                        rel_path = os.path.relpath(os.path.join(root_p, fname), base_dir)
-                        try:
-                            with open(os.path.join(root_p, fname), "r", encoding="utf-8", errors="ignore") as f:
-                                content = f.read()
-                                proto_matches.append({
-                                    "proto_name": p_name,
-                                    "relative_path": rel_path,
-                                    "content_preview": [line.strip() for line in content.splitlines() if line.strip() and not line.strip().startswith("//")][:15]
-                                })
-                        except Exception:
-                            pass
-
-    if os.path.exists(schema_dir):
-        for fname in os.listdir(schema_dir):
-            if fname.endswith(".json"):
-                s_name = fname[:-5]
-                if query_lower in s_name.lower():
-                    fpath = os.path.join(schema_dir, fname)
+        else:
+            for tbl_db in ["sym_tbl1", "sym_tbl2"]:
+                cursor.execute(f"SELECT table_name, content, row_count, is_compressed FROM {tbl_db}.tbl_game_data WHERE table_name LIKE ? LIMIT 5", (f"%{query_clean}%",))
+                for r in cursor.fetchall():
                     try:
-                        with open(fpath, "r", encoding="utf-8", errors="ignore") as f:
-                            s_data = json.load(f)
-                            schema_matches.append({
-                                "schema_name": s_name,
-                                "file_name": fname,
-                                "schema_definition": s_data
-                            })
-                            if not sample_response_payload:
-                                sample_response_payload = s_data
+                        raw_content = r["content"]
+                        text_content = zlib.decompress(raw_content).decode('utf-8') if r["is_compressed"] else (raw_content if isinstance(raw_content, str) else raw_content.decode('utf-8'))
+                        data = json.loads(text_content)
+                        sample = data[0] if isinstance(data, list) and data else data
+                        tbl_matches.append({
+                            "table_name": r["table_name"],
+                            "row_count": r["row_count"],
+                            "sample_structure": list(sample.keys()) if isinstance(sample, dict) else []
+                        })
                     except Exception:
                         pass
+    except Exception:
+        pass
+
+
+    try:
+        cursor.execute("SELECT proto_name, rel_path, content FROM sym3_db.proto_definitions WHERE proto_name LIKE ? LIMIT 5", (f"%{query_clean}%",))
+        for r in cursor.fetchall():
+            lines = [l.strip() for l in r["content"].splitlines() if l.strip() and not l.strip().startswith("//")]
+            proto_matches.append({
+                "proto_name": r["proto_name"],
+                "relative_path": r["rel_path"],
+                "content_preview": lines[:15]
+            })
+    except Exception:
+        pass
+
+    try:
+        cursor.execute("SELECT schema_name, content FROM sym3_db.schema_definitions WHERE schema_name LIKE ? LIMIT 5", (f"%{query_clean}%",))
+        for r in cursor.fetchall():
+            try:
+                s_data = json.loads(r["content"])
+                schema_matches.append({
+                    "schema_name": r["schema_name"],
+                    "schema_definition": s_data
+                })
+                if not sample_response_payload:
+                    sample_response_payload = s_data
+            except Exception:
+                pass
+    except Exception:
+        pass
+             pass
+    except Exception:
+        pass
 
     sno_concept_explanation = {
         "definition": "sno (Serial Number / Sequence Number / Static Data Unique ID)",
@@ -371,6 +382,8 @@ def search_context(query_str, max_results=5):
         "apk_response_role": "Game server responses send lightweight integer 'sno' identifiers in Protobuf/JSON packets instead of bulky text data. The client APK uses this 'sno' to look up localized string resources, icons, and attributes stored in Live/*.json data tables.",
         "end_to_end_relationship_chain": "IL2CPP Class (e.g. HeroTbl, VA 0x...) <---> sno Field (PK) <---> Live/*.json Game Table <---> Protobuf Packet (*.proto) <---> JSON Response Schema <---> APK Client UI Binding"
     }
+
+    conn.close()
 
     full_ai_context = {
         "author": AUTHOR_URL,
