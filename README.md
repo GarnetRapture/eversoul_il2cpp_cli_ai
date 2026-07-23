@@ -88,38 +88,74 @@ The engine provides an automated tracer for `sno` (Serial Number / Sequence Numb
 
 ---
 
-## Usage Guide
+## Multi-Domain Integration & Data Features
 
-### Command Line Examples
+The engine seamlessly unifies four distinct architectural domains into a single querying interface:
 
-#### 1. Search by Class Name
+### 1. Static Game TBL Data (340 Game Tables)
+- **Ingestion & Decompression**: Parses 340 game static data tables (e.g., `HeroTbl`, `ItemTbl`, `SkillTbl`, `Talk`, `StringTalk`) and stores them inside SQLite `symbols_tbl1.db` and `symbols_tbl2.db` using high-efficiency `zlib` BLOB compression.
+- **Query Capabilities**: Supports searching by table name (case-insensitive wildcards) or inspecting row count and sample key structures.
+
+### 2. Protobuf Network Definitions (486 `.proto` Definitions)
+- **Ingestion**: Parses 486 Google Protobuf protocol files (`Global/**/*.proto`) and indexes message fields, enums, packet structures, and field types in `symbols_meta.db`.
+- **Query Capabilities**: Enables instant lookup of request/response Protobuf message layouts, enum values, and field data types.
+
+### 3. Network Response JSON Schemas (159 Network Schemas)
+- **Ingestion**: Indexes 159 server-client API JSON response payload schemas (`schema/*.json`) within `symbols_meta.db`.
+- **Query Capabilities**: Maps server response structures directly to client-side IL2CPP data models.
+
+### 4. End-to-End `sno` Relationship & APK Integration System
+- **`sno` (Serial Number / Static Data Unique ID)**: Represents the Primary Key (PK) field across Unity IL2CPP C# data tables (referenced by methods like `TblManager.GetHeroTbl(int sno)`).
+- **APK Response Architecture**: Game server responses send lightweight integer `sno` identifiers in Protobuf/JSON packets instead of heavy string resources. The client APK uses `sno` to resolve localized text, icons, and hero attributes from Live TBL data tables.
+- **Full Relationship Chain**:
+  `IL2CPP Class (VA 0x...) <---> sno Field (PK) <---> Live TBL Game Data <---> Protobuf Packet <---> Network Response Schema <---> APK Client UI Binding`
+
+---
+
+## Detailed Usage Guide & Examples
+
+### Windows Executable Examples
+
+#### 1. Search IL2CPP Class & Virtual Addresses
 ```cmd
+:: Search by Class Name
 cli_search.exe CameraCapturedBlurImage
-```
 
-#### 2. Search by Virtual Address (VA)
-```cmd
+:: Search by Virtual Address (VA)
 cli_search.exe 0x0417BE60
 ```
 
-#### 3. Search by Integer `sno` Primary Key
+#### 2. Search Static Game TBL Tables
 ```cmd
-cli_search.exe 1001
+:: Search Hero Data Table
+cli_search.exe HeroTbl --json
+
+:: Search Script Talk Table
+cli_search.exe Talk --json
 ```
 
-#### 4. Output in Korean Language Mode
+#### 3. Search Protobuf Packets & Network Schemas
 ```cmd
+:: Search Hero Info Protobuf Payload
+cli_search.exe sHeroInfo --json
+
+:: Search Login Response Schema
+cli_search.exe Login --json
+```
+
+#### 4. End-to-End `sno` Tracing (Static ID Search)
+```cmd
+:: Trace All Relationships for Hero / Item sno 1001
+cli_search.exe 1001 --json
+```
+
+#### 5. Multi-Language & Formatting Options
+```cmd
+:: Output in Korean Language Mode
 cli_search.exe NetworkManager --lang ko
-```
 
-#### 5. Output in Raw JSON Mode (for AI Ingestion)
-```cmd
+:: Output in Structured RAW JSON Mode for AI Prompt Injection
 cli_search.exe NetworkManager --json
-```
-
-#### 6. Display Help Guide
-```cmd
-cli_search.exe --help
 ```
 
 ---
@@ -128,11 +164,12 @@ cli_search.exe --help
 
 | Argument / Option | Aliases | Description |
 | :--- | :--- | :--- |
-| `<query>` | `-q`, `--query` | Target Class Name, Method Name, DotNet Signature, `sno` ID, or Virtual Address (`0x...`) |
+| `<query>` | `-q`, `--query` | Target Class Name, Method Name, DotNet Signature, `sno` ID, TBL Name, Proto Message Name, or Virtual Address (`0x...`) |
 | `--lang <lang>` | `-l` | Output display language (`en` for English, `ko` for Korean). Default: `en` |
 | `--json` | `-j` | Formats output as structured RAW JSON for AI prompt injection |
 | `--help` | `-h` | Displays interactive CLI user guide |
 | `--version` | `-v` | Outputs engine version (`v0.0.1`) |
+
 
 ---
 
