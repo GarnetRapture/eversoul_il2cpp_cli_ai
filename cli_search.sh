@@ -326,8 +326,9 @@ def search_context(query_str, max_results=5):
                     except Exception:
                         pass
         else:
+            query_pattern = f"%{query_clean.lower()}%"
             for tbl_db in ["sym_tbl1", "sym_tbl2"]:
-                cursor.execute(f"SELECT table_name, content, row_count, is_compressed FROM {tbl_db}.tbl_game_data WHERE table_name LIKE ? LIMIT 5", (f"%{query_clean}%",))
+                cursor.execute(f"SELECT table_name, content, row_count, is_compressed FROM {tbl_db}.tbl_game_data WHERE LOWER(table_name) LIKE ? LIMIT 5", (query_pattern,))
                 for r in cursor.fetchall():
                     try:
                         raw_content = r["content"]
@@ -341,6 +342,7 @@ def search_context(query_str, max_results=5):
                         })
                     except Exception:
                         pass
+
     except Exception:
         pass
 
